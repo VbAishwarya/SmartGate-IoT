@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartGate-IoT Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container { max-width: 1400px; margin: 0 auto; }
+        
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        h1 { color: #333; font-size: 2.5em; margin-bottom: 10px; }
+        .subtitle { color: #666; font-size: 1.1em; }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+        
+        .stat-label { color: #666; font-size: 1.1em; }
+        
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+        
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td { padding: 12px; border-bottom: 1px solid #eee; }
+        tr:hover { background: #f5f5f5; }
+        
+        .event-detected { color: #10b981; font-weight: bold; }
+        .event-no-vehicle { color: #6b7280; }
+        
+        .vehicle-list { list-style: none; }
+        .vehicle-item {
+            padding: 10px;
+            margin: 5px 0;
+            background: #f9fafb;
+            border-radius: 5px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-bottom: 20px;
+        }
+        
+        .refresh-btn:hover { background: #5568d3; }
+        
+        @media (max-width: 768px) {
+            .content-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚗 SmartGate-IoT Dashboard</h1>
+            <p class="subtitle">Real-time Vehicle Detection System</p>
+        </header>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <div class="stat-value">{{ events|length }}</div>
+                <div class="stat-label">Total Events</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ vehicles|length }}</div>
+                <div class="stat-label">Authorized Vehicles</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ events|selectattr('event_type', 'equalto', 'VEHICLE_DETECTED')|list|length }}</div>
+                <div class="stat-label">Vehicles Detected</div>
+            </div>
+        </div>
+        
+        <div class="content-grid">
+            <div class="card">
+                <h2>Recent Detection Events</h2>
+                <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Event Type</th>
+                            <th>Distance</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for event in events %}
+                        <tr>
+                            <td>{{ event.timestamp }}</td>
+                            <td class="{% if event.event_type == 'VEHICLE_DETECTED' %}event-detected{% else %}event-no-vehicle{% endif %}">
+                                {{ event.event_type }}
+                            </td>
+                            <td>{{ "%.1f"|format(event.distance) if event.distance else "N/A" }} cm</td>
+                        </tr>
+                        {% endfor %}
+                        {% if not events %}
+                        <tr>
+                            <td colspan="3" style="text-align: center; color: #999; padding: 20px;">
+                                No events recorded yet
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="card">
+                <h2>Authorized Vehicles</h2>
+                <ul class="vehicle-list">
+                    {% for vehicle in vehicles %}
+                    <li class="vehicle-item">
+                        <strong>{{ vehicle.plate_number }}</strong><br>
+                        <small style="color: #666;">Added: {{ vehicle.created_at }}</small>
+                    </li>
+                    {% endfor %}
+                    {% if not vehicles %}
+                    <li class="vehicle-item" style="text-align: center; color: #999;">
+                        No authorized vehicles
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        setTimeout(function() { location.reload(); }, 5000);
+    </script>
+</body>
+</html>

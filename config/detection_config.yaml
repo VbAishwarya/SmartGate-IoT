@@ -1,0 +1,7 @@
+# Vehicle Detection Configuration
+
+detection:
+  threshold_cm: 10.0          # Detection threshold (vehicle detected when distance < threshold)
+  min_distance_cm: 2.0        # Minimum valid sensor reading
+  max_distance_cm: 100.0      # Maximum valid sensor reading
+  polling_interval: 0.5       # Polling interval for continuous detection (seconds)
