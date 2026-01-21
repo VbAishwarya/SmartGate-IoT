@@ -56,7 +56,7 @@ SmartGate-IoT/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/SmartGate-IoT.git
+   git clone https://github.com/VbAishwarya/SmartGate-IoT.git
    cd SmartGate-IoT
    ```
 
