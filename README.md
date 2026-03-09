@@ -71,6 +71,7 @@ SmartGate-IoT/
 ├── main.py                 # Main application entry point
 ├── run_dashboard.py        # Standalone dashboard runner
 ├── alpr.py                 # Pi demo launcher (runs rpi/alpr.py; use on device only)
+├── run_gate_dashboard.py   # Gate Live dashboard (port 5001; Pi pushes events here)
 ```
 
 ## 🚀 Quick Start
@@ -132,6 +133,23 @@ python alpr.py
 ```
 
 This runs **rpi/alpr.py**: captures frames with Picamera2, runs plate OCR (Tesseract), checks plates against a local SQLite DB (`plates.db`) with fuzzy matching, and opens/closes the gate via servo. Install on the Pi: `gpiozero`, `picamera2`, `opencv-python`, `pytesseract`, system Tesseract. See [SETUP.md](SETUP.md) for Pi setup.
+
+#### Gate Live Dashboard (for presentations)
+
+To show Pi events **live on a separate dashboard** (e.g. on a laptop during a demo):
+
+1. On the **laptop** (same network as the Pi), start the Gate Live dashboard:
+   ```bash
+   python run_gate_dashboard.py
+   ```
+   Opens at **http://localhost:5001** — clean, dark UI with current plate, distance, decision, gate state, and event log.
+
+2. On the **Pi**, set the dashboard URL and run the gate:
+   ```bash
+   export GATE_DASHBOARD_URL=http://<laptop-ip>:5001
+   python alpr.py
+   ```
+   The Pi posts each plate decision and gate open/close to the dashboard; the page auto-refreshes every 1.5s. The main dashboard (port 5000) is unchanged.
 
 ## 🎮 Main Menu Options
 

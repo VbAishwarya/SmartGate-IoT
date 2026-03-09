@@ -107,7 +107,24 @@ To run the gate demo on a Raspberry Pi with camera, ultrasonic sensor, servo, an
    ```bash
    python alpr.py
    ```
-   This runs **rpi/alpr.py**: live camera, distance sensor, plate OCR, and gate control. Authorized plates are read from `rpi/plates.db` (SQLite). The script uses `src.common.gate_logic.decide_gate_action` and exits after the first authorized vehicle (or press `q` to quit). On non-Pi machines, `python alpr.py` will exit with a message that Pi hardware is required.
+   This runs **rpi/alpr.py**: live camera, distance sensor, plate OCR, and gate control. Authorized plates are read from `plates.db` (in project root when run from there). The script uses `src.common.gate_logic.decide_gate_action` and exits after the first authorized vehicle (or press `q` to quit). On non-Pi machines, `python alpr.py` will exit with a message that Pi hardware is required.
+
+### Gate Live Dashboard (optional, for presentations)
+
+A **separate** dashboard shows Pi ALPR events in real time (plate, distance, decision, gate open/closed). It does not replace the main dashboard (port 5000).
+
+1. On a machine reachable from the Pi (e.g. laptop on same Wi‑Fi), start:
+   ```bash
+   python run_gate_dashboard.py
+   ```
+   Open **http://localhost:5001** — dark, minimal “SmartGate Live” view with state and event log (auto-refresh 1.5s).
+
+2. On the **Pi**, point it at the dashboard and run the gate:
+   ```bash
+   export GATE_DASHBOARD_URL=http://<laptop-ip>:5001
+   python alpr.py
+   ```
+   Replace `<laptop-ip>` with the laptop’s IP (e.g. `192.168.1.10`). The Pi posts each plate decision and gate open/close; if the URL is not set or the dashboard is unreachable, the Pi script still runs normally.
 
 ## Running Demos
 

@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SmartGate Live</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1419;
+      color: #e6edf3;
+      min-height: 100vh;
+      padding: 24px;
+    }
+    .container { max-width: 900px; margin: 0 auto; }
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .subtitle {
+      font-size: 0.95rem;
+      color: #8b949e;
+      margin-bottom: 28px;
+    }
+    .state-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .state-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .state-card .label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #8b949e;
+      margin-bottom: 6px;
+    }
+    .state-card .value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+    .state-card.gate-open .value { color: #3fb950; }
+    .state-card.gate-closed .value { color: #8b949e; }
+    .state-card.authorized .value { color: #3fb950; }
+    .state-card.unauthorized .value { color: #f85149; }
+    .state-card.no-plate .value { color: #8b949e; }
+    .events-section h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #c9d1d9;
+    }
+    .events-list {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 12px;
+      overflow: hidden;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+    .event-row {
+      display: grid;
+      grid-template-columns: 1fr 100px 120px 1fr 1fr;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid #21262d;
+      font-size: 0.9rem;
+      align-items: center;
+    }
+    .event-row:last-child { border-bottom: none; }
+    .event-row:nth-child(odd) { background: rgba(255,255,255,0.02); }
+    .event-type { font-weight: 500; }
+    .event-type.plate_decision { color: #58a6ff; }
+    .event-type.gate_open { color: #3fb950; }
+    .event-type.gate_closed { color: #8b949e; }
+    .event-time { color: #8b949e; font-size: 0.85em; }
+    .event-plate { font-family: ui-monospace, monospace; }
+    .event-decision.auth { color: #3fb950; }
+    .event-decision.unauth { color: #f85149; }
+    .event-decision.far { color: #d29922; }
+    .empty-events {
+      padding: 32px;
+      text-align: center;
+      color: #8b949e;
+      font-size: 0.95rem;
+    }
+    .live-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3fb950;
+      animation: pulse 1.5s ease-in-out infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .last-updated { font-size: 0.8rem; color: #6e7681; margin-top: 16px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1><span class="live-dot" aria-hidden="true"></span>SmartGate Live</h1>
+    <p class="subtitle">Live events from Raspberry Pi ALPR (gate logic mirror). Refresh every 1.5s.</p>
+
+    <div class="state-grid">
+      <div class="state-card" id="state-plate">
+        <div class="label">Plate</div>
+        <div class="value" id="val-plate">—</div>
+      </div>
+      <div class="state-card" id="state-distance">
+        <div class="label">Distance</div>
+        <div class="value" id="val-distance">—</div>
+      </div>
+      <div class="state-card" id="state-decision">
+        <div class="label">Decision</div>
+        <div class="value" id="val-decision">—</div>
+      </div>
+      <div class="state-card" id="state-gate">
+        <div class="label">Gate</div>
+        <div class="value" id="val-gate">Closed</div>
+      </div>
+      <div class="state-card" id="state-match">
+        <div class="label">Match</div>
+        <div class="value" id="val-match">—</div>
+      </div>
+    </div>
+
+    <section class="events-section">
+      <h2>Event log</h2>
+      <div class="events-list">
+        <div class="empty-events" id="empty-events">Waiting for events from the Pi… Set GATE_DASHBOARD_URL on the Pi and run <code>python alpr.py</code>.</div>
+        <div id="events-rows"></div>
+      </div>
+      <p class="last-updated" id="last-updated"></p>
+    </section>
+  </div>
+
+  <script>
+    function escapeHtml(s) {
+      if (s == null || s === undefined) return '—';
+      var div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+    function decisionClass(d) {
+      if (!d) return '';
+      if (d === 'AUTHORIZED_OPEN' || d === 'AUTHORIZED_FAR') return 'auth';
+      if (d === 'UNAUTHORIZED') return 'unauth';
+      if (d === 'AUTHORIZED_FAR') return 'far';
+      return '';
+    }
+    function formatDecision(d) {
+      if (!d) return '—';
+      if (d === 'AUTHORIZED_OPEN') return 'Authorized (open)';
+      if (d === 'AUTHORIZED_FAR') return 'Authorized (far)';
+      if (d === 'UNAUTHORIZED') return 'Unauthorized';
+      if (d === 'NO_PLATE') return 'No plate';
+      return d;
+    }
+    function fetchState() {
+      fetch('/api/gate/state')
+        .then(function(r) { return r.json(); })
+        .then(function(s) {
+          document.getElementById('val-plate').textContent = s.plate || '—';
+          document.getElementById('val-distance').textContent = s.distance != null ? s.distance + ' cm' : '—';
+          document.getElementById('val-decision').textContent = formatDecision(s.decision);
+          document.getElementById('val-gate').textContent = s.gate_open ? 'Open' : 'Closed';
+          document.getElementById('val-match').textContent = s.match || '—';
+          var cardDecision = document.getElementById('state-decision');
+          cardDecision.className = 'state-card';
+          if (s.decision === 'AUTHORIZED_OPEN' || s.decision === 'AUTHORIZED_FAR') cardDecision.classList.add('authorized');
+          else if (s.decision === 'UNAUTHORIZED') cardDecision.classList.add('unauthorized');
+          else cardDecision.classList.add('no-plate');
+          var cardGate = document.getElementById('state-gate');
+          cardGate.className = 'state-card ' + (s.gate_open ? 'gate-open' : 'gate-closed');
+          document.getElementById('last-updated').textContent = s.last_updated ? 'Last update: ' + s.last_updated : '';
+        })
+        .catch(function() {});
+    }
+    function fetchEvents() {
+      fetch('/api/gate/events?limit=80')
+        .then(function(r) { return r.json(); })
+        .then(function(events) {
+          var container = document.getElementById('events-rows');
+          var empty = document.getElementById('empty-events');
+          if (!events || events.length === 0) {
+            empty.style.display = 'block';
+            container.innerHTML = '';
+            return;
+          }
+          empty.style.display = 'none';
+          container.innerHTML = events.map(function(e) {
+            var type = e.type || '';
+            var ts = e.timestamp || '';
+            var plate = e.plate != null ? escapeHtml(e.plate) : '—';
+            var dist = e.distance != null ? e.distance + ' cm' : '—';
+            var dec = e.decision != null ? formatDecision(e.decision) : (type === 'gate_open' ? 'Gate open' : type === 'gate_closed' ? 'Gate closed' : '—');
+            var match = e.match != null ? escapeHtml(e.match) : '—';
+            var cls = 'event-type ' + (type === 'plate_decision' ? 'plate_decision' : type === 'gate_open' ? 'gate_open' : 'gate_closed');
+            var decCls = 'event-decision ' + decisionClass(e.decision);
+            return '<div class="event-row">' +
+              '<span class="' + cls + '">' + type + '</span>' +
+              '<span class="event-time">' + escapeHtml(ts) + '</span>' +
+              '<span class="event-plate">' + plate + '</span>' +
+              '<span class="' + decCls + '">' + dec + '</span>' +
+              '<span>' + dist + '</span>' +
+              '</div>';
+          }).join('');
+        })
+        .catch(function() {});
+    }
+    function refresh() {
+      fetchState();
+      fetchEvents();
+    }
+    refresh();
+    setInterval(refresh, 1500);
+  </script>
+</body>
+</html>

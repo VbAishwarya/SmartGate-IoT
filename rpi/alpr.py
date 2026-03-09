@@ -120,6 +120,31 @@ def log_entry(plate, status, distance):
         file.write(f"{timestamp},{plate},{status},{distance}cm\n")
 
 
+# ---------------- GATE LIVE DASHBOARD (optional) ----------------
+def _push_gate_event(event_type, **kwargs):
+    """If GATE_DASHBOARD_URL is set, POST event to the Gate Live dashboard. No-op on failure."""
+    url = os.environ.get("GATE_DASHBOARD_URL", "").strip().rstrip("/")
+    if not url:
+        return
+    import json
+    try:
+        from urllib.request import Request, urlopen
+        from urllib.error import URLError, HTTPError
+    except ImportError:
+        return
+    payload = json.dumps({"type": event_type, **kwargs}).encode("utf-8")
+    req = Request(
+        url + "/api/gate/event",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        urlopen(req, timeout=2)
+    except (URLError, HTTPError, OSError):
+        pass  # Do not break Pi script if dashboard is unreachable
+
+
 def main():
     global GREEN_LED, RED_LED, sensor, servo, picam2
 
@@ -183,6 +208,15 @@ def main():
                     fuzzy_threshold=FUZZY_THRESHOLD,
                 )
 
+                _push_gate_event(
+                    "plate_decision",
+                    plate=plate,
+                    distance=distance,
+                    decision=decision.status,
+                    match=decision.match,
+                    similarity=round(decision.similarity, 2),
+                )
+
                 if decision.status in ("AUTHORIZED_OPEN", "AUTHORIZED_FAR"):
                     matched_plate = decision.match or plate
                     print(f"AUTHORIZED Plate: {matched_plate} (OCR: {plate}) | Distance: {distance} cm")
@@ -191,6 +225,7 @@ def main():
 
                     if decision.status == "AUTHORIZED_OPEN":
                         set_servo_open()
+                        _push_gate_event("gate_open")
                         gate_open = True
                         open_time = time.time()
 
@@ -222,6 +257,7 @@ def main():
                             time.sleep(0.1)
 
                         set_servo_close()
+                        _push_gate_event("gate_closed")
                         gate_open = False
                         open_time = None
                         GREEN_LED.off()
@@ -244,6 +280,7 @@ def main():
             if gate_open and open_time is not None:
                 if time.time() - open_time >= 5:
                     set_servo_close()
+                    _push_gate_event("gate_closed")
                     gate_open = False
                     open_time = None
                     GREEN_LED.off()
