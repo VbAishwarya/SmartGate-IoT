@@ -23,8 +23,8 @@ SmartGate-IoT is a scaled IoT demonstration project that showcases an automated 
 - ✅ **Web Dashboard:** Complete (Flask-based; run scenarios, plate check via image upload)
 - ✅ **Menu-Driven Interface:** Complete (scenario-focused)
 - ✅ **Vision/OCR (optional):** Shared plate OCR in `src/vision/`; used by vision tests and dashboard image upload
-- ⏳ **Image Capture Module:** Not started
-- ⏳ **Barrier Control Module:** Not started
+- ✅ **Raspberry Pi demo (rpi/alpr.py):** Camera (Picamera2), plate OCR, gate/servo control; optional live view via Gate Live dashboard (port 5001)
+- ⏳ **Image Capture / Barrier Control in main app:** Not integrated in `main.py` (main app uses mock sensor only); camera and gate exist in Pi demo and contrib
 
 ## 🔗 Important Links
 - 📄 Project Documentation (Confluence): https://aishwaryavb.atlassian.net/wiki/spaces/IP/overview?homepageId=9437389
@@ -331,5 +331,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Status:** ✅ Vehicle Detection & Database modules complete  
-**Next Steps:** Image Capture, OCR, Barrier Control modules
+**Status:** ✅ Vehicle detection, database, dashboard, vision/OCR, and Pi demo (alpr.py: camera, OCR, gate) complete.  
+**Next Steps:** Optional: integrate camera and barrier into main app flow (already present in Pi demo and contrib).
