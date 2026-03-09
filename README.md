@@ -327,7 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Driver:** @Aishwarya V B
 - **Approver:** Prof. Christian Fiedler
-- **Contributors:** @Yash Kakadiya, @Dishva Italiya, @Jenish Sheladiya, @dhruvimoradiya01, @HimaPatel24, @Shubha, @pavanmgowda2497, @gourip682
+- **Contributors:** @Yash Kakadiya, @Dishva Italiya, @Jenish Sheladiya, @dhruvimoradiya01, @HimaPatel24, @Shubha, @pavanmgowda2497, @gourip682, @Giorgi Ubiria
 
 ---
 
