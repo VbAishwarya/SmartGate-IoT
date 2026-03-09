@@ -60,3 +60,5 @@ Thumbs.db
 smartgate.db
 demo_*.db
 allowed_vehicles.db
+/images/
+docs/

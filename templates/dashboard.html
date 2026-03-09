@@ -109,6 +109,55 @@
         
         .refresh-btn:hover { background: #5568d3; }
         
+        .meta-line { font-size: 0.9em; color: #6b7280; margin-top: 10px; }
+        .scenarios-card { margin-top: 20px; }
+        .scenario-item { padding: 6px 0; border-bottom: 1px solid #eee; font-size: 0.95em; }
+        .scenario-item:last-child { border-bottom: none; }
+        .scenario-name { font-weight: 600; color: #333; }
+        .scenario-desc { color: #6b7280; font-size: 0.85em; }
+        .empty-hint { color: #9ca3af; font-style: italic; padding: 12px 0; }
+        .run-btn {
+            background: #10b981;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            margin-top: 4px;
+        }
+        .run-btn:hover { background: #059669; }
+        .run-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        .pause-label { font-size: 0.9em; color: #6b7280; margin-left: 8px; }
+        #toast { position: fixed; bottom: 20px; right: 20px; padding: 12px 20px; border-radius: 8px; color: white; font-weight: 600; z-index: 100; display: none; }
+        #toast.success { background: #10b981; }
+        #toast.error { background: #ef4444; }
+        .vision-card .file-input { margin: 10px 0; font-size: 0.95em; }
+        .check-plate-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin-top: 8px;
+        }
+        .check-plate-btn:hover { background: #5568d3; }
+        .check-plate-btn:disabled { background: #9ca3af; cursor: not-allowed; }
+        #vision-result { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.95em; display: none; }
+        #vision-result.show { display: block; }
+        #vision-result.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+        #vision-result.fail { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+        #vision-result.neutral { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        #vision-result-easyocr { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.95em; display: none; }
+        #vision-result-easyocr.show { display: block; }
+        #vision-result-easyocr.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+        #vision-result-easyocr.fail { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+        #vision-result-easyocr.neutral { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        .vision-plate { font-weight: 700; font-size: 1.1em; }
+        .vision-similar { margin-top: 8px; font-size: 0.9em; color: #6b7280; }
+        
         @media (max-width: 768px) {
             .content-grid { grid-template-columns: 1fr; }
         }
@@ -118,20 +167,21 @@
     <div class="container">
         <header>
             <h1>🚗 SmartGate-IoT Dashboard</h1>
-            <p class="subtitle">Real-time Vehicle Detection System</p>
+            <p class="subtitle">Simulation & monitoring (mock sensor, local DB & plate OCR)</p>
+            <p class="meta-line" id="last-refresh" aria-live="polite">—</p>
         </header>
         
         <div class="stats">
             <div class="stat-card">
-                <div class="stat-value">{{ events|length }}</div>
+                <div class="stat-value" id="stat-events">{{ events|length }}</div>
                 <div class="stat-label">Total Events</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{ vehicles|length }}</div>
+                <div class="stat-value" id="stat-vehicles">{{ vehicles|length }}</div>
                 <div class="stat-label">Authorized Vehicles</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value">{{ events|selectattr('event_type', 'equalto', 'VEHICLE_DETECTED')|list|length }}</div>
+                <div class="stat-value" id="stat-detected">{{ events|selectattr('event_type', 'equalto', 'VEHICLE_DETECTED')|list|length }}</div>
                 <div class="stat-label">Vehicles Detected</div>
             </div>
         </div>
@@ -139,8 +189,10 @@
         <div class="content-grid">
             <div class="card">
                 <h2>Recent Detection Events</h2>
-                <button class="refresh-btn" onclick="location.reload()">🔄 Refresh</button>
-                <table>
+                <button class="refresh-btn" onclick="refreshData()" aria-label="Refresh data">🔄 Refresh</button>
+                <label class="pause-label"><input type="checkbox" id="pause-refresh"> Pause auto-refresh</label>
+                <p class="meta-line" id="auto-refresh-hint">Auto-refresh in <span id="countdown">10</span>s</p>
+                <table aria-label="Recent detection events">
                     <thead>
                         <tr>
                             <th>Time</th>
@@ -148,7 +200,7 @@
                             <th>Distance</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="events-body">
                         {% for event in events %}
                         <tr>
                             <td>{{ event.timestamp }}</td>
@@ -160,8 +212,8 @@
                         {% endfor %}
                         {% if not events %}
                         <tr>
-                            <td colspan="3" style="text-align: center; color: #999; padding: 20px;">
-                                No events recorded yet
+                            <td colspan="3" class="empty-hint" style="text-align: center; padding: 20px;">
+                                No events recorded yet. Run a scenario below or use the main menu.
                             </td>
                         </tr>
                         {% endif %}
@@ -171,7 +223,7 @@
             
             <div class="card">
                 <h2>Authorized Vehicles</h2>
-                <ul class="vehicle-list">
+                <ul class="vehicle-list" id="vehicles-list" aria-label="List of authorized license plates">
                     {% for vehicle in vehicles %}
                     <li class="vehicle-item">
                         <strong>{{ vehicle.plate_number }}</strong><br>
@@ -179,17 +231,215 @@
                     </li>
                     {% endfor %}
                     {% if not vehicles %}
-                    <li class="vehicle-item" style="text-align: center; color: #999;">
-                        No authorized vehicles
+                    <li class="vehicle-item empty-hint" style="text-align: center;">
+                        No authorized vehicles. Add them via the main menu (option 5) or at startup.
                     </li>
                     {% endif %}
                 </ul>
             </div>
+            
+            <div class="card scenarios-card">
+                <h2>Run scenarios</h2>
+                <p class="meta-line">Run a scenario below; events will appear above after refresh.</p>
+                <div id="scenarios-list">Loading…</div>
+            </div>
+            
+            <div class="card vision-card">
+                <h2>Plate check (image upload)</h2>
+                <p class="meta-line">Upload a license plate image (crop or full image). OCR reads the plate text and checks it against authorized vehicles. Uses <strong>Tesseract</strong> by default.</p>
+                <input type="file" class="file-input" id="vision-file" accept="image/jpeg,image/png,image/jpg" aria-label="Choose plate image">
+                <br>
+                <button type="button" class="check-plate-btn" id="vision-check-btn" onclick="checkPlateImage()">Check plate</button>
+                <div id="vision-result" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="card vision-card">
+                <h2>Plate check (EasyOCR)</h2>
+                <p class="meta-line">Same as above but forces <strong>EasyOCR</strong> backend (often better for EU plates / odd fonts). Requires <code>pip install easyocr</code>.</p>
+                <input type="file" class="file-input" id="vision-file-easyocr" accept="image/jpeg,image/png,image/jpg" aria-label="Choose plate image for EasyOCR">
+                <br>
+                <button type="button" class="check-plate-btn" id="vision-check-btn-easyocr" onclick="checkPlateImageEasyOCR()">Check plate (EasyOCR)</button>
+                <div id="vision-result-easyocr" role="status" aria-live="polite"></div>
+            </div>
         </div>
     </div>
+    <div id="toast"></div>
     
     <script>
-        setTimeout(function() { location.reload(); }, 5000);
+        var REFRESH_INTERVAL = 10;
+        var countdown = REFRESH_INTERVAL;
+        var countdownTimer = null;
+        var paused = false;
+
+        function showToast(msg, isError) {
+            var el = document.getElementById('toast');
+            el.textContent = msg;
+            el.className = isError ? 'error' : 'success';
+            el.style.display = 'block';
+            setTimeout(function() { el.style.display = 'none'; }, 3000);
+        }
+
+        function updatePage(events, vehicles) {
+            document.getElementById('stat-events').textContent = events.length;
+            document.getElementById('stat-vehicles').textContent = vehicles.length;
+            var detected = events.filter(function(e) { return e.event_type === 'VEHICLE_DETECTED'; }).length;
+            document.getElementById('stat-detected').textContent = detected;
+
+            var tbody = document.getElementById('events-body');
+            if (events.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="empty-hint" style="text-align: center; padding: 20px;">No events yet. Run a scenario below.</td></tr>';
+            } else {
+                tbody.innerHTML = events.map(function(e) {
+                    var cls = e.event_type === 'VEHICLE_DETECTED' ? 'event-detected' : 'event-no-vehicle';
+                    var dist = e.distance != null ? e.distance.toFixed(1) + ' cm' : 'N/A';
+                    return '<tr><td>' + e.timestamp + '</td><td class="' + cls + '">' + e.event_type + '</td><td>' + dist + '</td></tr>';
+                }).join('');
+            }
+
+            var vList = document.getElementById('vehicles-list');
+            if (vehicles.length === 0) {
+                vList.innerHTML = '<li class="vehicle-item empty-hint" style="text-align: center;">No authorized vehicles.</li>';
+            } else {
+                vList.innerHTML = vehicles.map(function(v) {
+                    return '<li class="vehicle-item"><strong>' + v.plate_number + '</strong><br><small style="color: #666;">Added: ' + v.created_at + '</small></li>';
+                }).join('');
+            }
+
+            document.getElementById('last-refresh').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+        }
+
+        function refreshData() {
+            Promise.all([fetch('/api/events').then(function(r) { return r.json(); }), fetch('/api/vehicles').then(function(r) { return r.json(); })])
+                .then(function(results) {
+                    updatePage(results[0], results[1]);
+                })
+                .catch(function() { showToast('Refresh failed', true); });
+        }
+
+        function runScenario(id, btn) {
+            btn.disabled = true;
+            fetch('/api/scenarios/' + id + '/run', { method: 'POST' })
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    if (data.success) {
+                        showToast(data.message || 'Scenario completed');
+                        refreshData();
+                    } else {
+                        showToast(data.message || 'Failed', true);
+                    }
+                })
+                .catch(function() { showToast('Request failed', true); })
+                .then(function() { btn.disabled = false; });
+        }
+
+        function checkPlateImage() {
+            checkPlateImageWithBackend('vision-file', 'vision-result', 'vision-check-btn', null);
+        }
+        function checkPlateImageEasyOCR() {
+            checkPlateImageWithBackend('vision-file-easyocr', 'vision-result-easyocr', 'vision-check-btn-easyocr', 'easyocr');
+        }
+        function checkPlateImageWithBackend(inputId, resultId, btnId, backend) {
+            var input = document.getElementById(inputId);
+            var resultEl = document.getElementById(resultId);
+            var btn = document.getElementById(btnId);
+            if (!input.files || !input.files.length) {
+                resultEl.className = 'show neutral';
+                resultEl.textContent = 'Please choose an image first.';
+                return;
+            }
+            btn.disabled = true;
+            resultEl.textContent = 'Running OCR…';
+            resultEl.className = 'show neutral';
+            var form = new FormData();
+            form.append('image', input.files[0]);
+            if (backend) form.append('backend', backend);
+            fetch('/api/vision/check', { method: 'POST', body: form })
+                .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }); })
+                .then(function(res) {
+                    var d = res.data;
+                    resultEl.classList.remove('success', 'fail', 'neutral');
+                    resultEl.classList.add('show');
+                    if (!d.success) {
+                        resultEl.classList.add('fail');
+                        resultEl.innerHTML = 'Error: ' + (d.error || 'Unknown error');
+                        return;
+                    }
+                    if (d.plate) {
+                        resultEl.classList.add(d.authorized ? 'success' : 'fail');
+                        resultEl.innerHTML = '<span class="vision-plate">Read plate: ' + escapeHtml(d.plate) + '</span><br>' +
+                            (d.authorized ? '✅ Authorized' + (d.match ? ' (match: ' + escapeHtml(d.match) + ')' : '') : '❌ Not authorized' + (d.match ? ' (closest: ' + escapeHtml(d.match) + ', score: ' + d.score + ')' : ''));
+                        if (d.similar && d.similar.length) {
+                            resultEl.innerHTML += '<div class="vision-similar">Similar: ' + d.similar.map(function(s) { return escapeHtml(s.plate) + ' (' + s.score + ')'; }).join(', ') + '</div>';
+                        }
+                    } else {
+                        resultEl.classList.add('neutral');
+                        resultEl.textContent = d.error || 'No plate text detected.';
+                    }
+                })
+                .catch(function() {
+                    resultEl.classList.add('show', 'fail');
+                    resultEl.textContent = 'Request failed.';
+                })
+                .then(function() { btn.disabled = false; });
+        }
+        function escapeHtml(s) {
+            if (s == null) return '';
+            var div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function startCountdown() {
+            if (countdownTimer) clearInterval(countdownTimer);
+            countdown = REFRESH_INTERVAL;
+            var countdownEl = document.getElementById('countdown');
+            countdownTimer = setInterval(function() {
+                if (paused) return;
+                countdown--;
+                if (countdownEl) countdownEl.textContent = countdown;
+                if (countdown <= 0) {
+                    countdown = REFRESH_INTERVAL;
+                    refreshData();
+                }
+            }, 1000);
+        }
+
+        document.getElementById('pause-refresh').addEventListener('change', function() {
+            paused = this.checked;
+            var hint = document.getElementById('auto-refresh-hint');
+            if (paused) {
+                hint.innerHTML = 'Auto-refresh paused';
+                if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+            } else {
+                hint.innerHTML = 'Auto-refresh in <span id="countdown">' + countdown + '</span>s';
+                startCountdown();
+            }
+        });
+
+        (function() {
+            document.getElementById('last-refresh').textContent = 'Last updated: ' + new Date().toLocaleTimeString();
+            startCountdown();
+        })();
+
+        fetch('/api/scenarios')
+            .then(function(r) { return r.json(); })
+            .then(function(scenarios) {
+                var el = document.getElementById('scenarios-list');
+                if (!scenarios || scenarios.length === 0) {
+                    el.innerHTML = '<p class="empty-hint">No scenarios loaded.</p>';
+                    return;
+                }
+                el.innerHTML = scenarios.map(function(s) {
+                    return '<div class="scenario-item">' +
+                        '<span class="scenario-name">' + (s.name || s.id) + '</span><br>' +
+                        '<span class="scenario-desc">' + (s.description || '') + '</span><br>' +
+                        '<button class="run-btn" onclick="runScenario(\'' + s.id + '\', this)" aria-label="Run ' + (s.name || s.id) + '">Run</button>' +
+                        '</div>';
+                }).join('');
+            })
+            .catch(function() {
+                document.getElementById('scenarios-list').innerHTML = '<p class="empty-hint">Scenarios unavailable.</p>';
+            });
     </script>
 </body>
 </html>

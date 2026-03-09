@@ -9,16 +9,21 @@ SmartGate-IoT is a scaled IoT demonstration project that showcases an automated 
 ## 📚 Project Documentation
 
 ### Documentation
-- **[Vehicle Detection Logic](docs/vehicle_detection_logic.md)** - Detection logic and pseudocode
-- **[Assumptions](docs/assumptions.md)** - Assumptions and constraints
+- **[Docs index](docs/README.md)** — Overview of all documentation
+- **[Architecture](docs/ARCHITECTURE.md)** — Design (Ports & Adapters), directory layout
+- **[Setup](SETUP.md)** — Installation, tests, vision, Raspberry Pi
+- **[Testing](docs/TESTING.md)** — Test layers, vision tests, dashboard
+- **[Design](docs/DESIGN.md)** — Assumptions, detection logic, constraints
+- **[Module reference](docs/MODULES.md)** — Database, vehicle detection, vision (OCR)
+- **[Plate OCR options](docs/PLATE_OCR_OPTIONS.md)** — Tesseract, EasyOCR, PaddleOCR, ALPR
 
 ### Current Status
 - ✅ **Vehicle Detection Module:** Complete
 - ✅ **Database Module:** Complete (SQLite with fuzzy matching)
-- ✅ **Web Dashboard:** Complete (Flask-based)
+- ✅ **Web Dashboard:** Complete (Flask-based; run scenarios, plate check via image upload)
 - ✅ **Menu-Driven Interface:** Complete (scenario-focused)
+- ✅ **Vision/OCR (optional):** Shared plate OCR in `src/vision/`; used by vision tests and dashboard image upload
 - ⏳ **Image Capture Module:** Not started
-- ⏳ **OCR Module:** Not started
 - ⏳ **Barrier Control Module:** Not started
 
 ## 🔗 Important Links
@@ -33,21 +38,40 @@ SmartGate-IoT is a scaled IoT demonstration project that showcases an automated 
 
 ```
 SmartGate-IoT/
-├── config/              # Configuration files
-├── src/                 # Source code
-│   ├── vehicle_detection/  # ✅ Vehicle detection module
+├── config/                 # Configuration files
+├── src/                    # Source code (see docs/ARCHITECTURE.md)
+│   ├── core/               # Ports (interfaces): DistanceSensor, PlateStorage
+│   ├── vehicle_detection/  # ✅ Vehicle detection (detector + mock sensor)
 │   ├── database/           # ✅ SQLite database module
-│   ├── common/             # ✅ Shared utilities (colors, commands, scenarios)
+│   ├── common/             # ✅ Shared utilities (colors, commands, scenarios, dashboard)
+│   ├── fuzzy_logic.py      # ✅ Fuzzy plate matching (optical typo rules)
+│   ├── vision/             # ✅ Optional: plate OCR (used by tests + dashboard image upload)
 │   ├── image_capture/      # Future
 │   ├── ocr/                # Future
-│   ├── barrier_control/    # Future
+│   ├── barrier_control/   # Future
 │   └── __init__.py
-├── tests/              # Test files
-├── docs/               # Documentation
-├── examples/           # Demo scripts
-├── templates/          # Web dashboard templates
-├── main.py             # Main application entry point
-└── run_dashboard.py    # Standalone dashboard runner
+├── tests/                  # Test suite (no hardware required)
+│   ├── unit/               # Unit tests
+│   ├── integration/        # Integration tests
+│   ├── e2e/                # End-to-end tests
+│   ├── vision/             # Optional: OCR/ML tests with real images (see docs/TESTING.md)
+│   ├── data/               # Fixtures: images/, videos/ for vision tests
+│   ├── conftest.py         # Shared pytest fixtures
+│   ├── test_detector.py    # Legacy detector tests
+│   └── test_database.py    # Legacy database tests
+├── contrib/                # Hardware and experimental modules
+│   ├── image_processing_ocr/   # OCR notebook + sample plates (number_plates/)
+│   ├── ocr_with_database/     # Alternate RPi pipeline (camera, servo, LEDs, OCR, SQLite)
+│   └── README.md
+├── rpi/                    # Raspberry Pi demonstration (camera, GPIO, gate)
+│   └── alpr.py             # Pi entry: Picamera2, ultrasonic, servo, LEDs, plate OCR, gate logic
+├── docs/                   # Documentation
+├── examples/               # Demo scripts
+├── templates/              # Web dashboard templates
+├── main.py                 # Main application entry point
+├── run_dashboard.py        # Standalone dashboard runner
+├── alpr.py                 # Pi demo launcher (runs rpi/alpr.py; use on device only)
+├── run_gate_dashboard.py   # Gate Live dashboard (port 5001; Pi pushes events here)
 ```
 
 ## 🚀 Quick Start
@@ -83,6 +107,49 @@ SmartGate-IoT/
 - For custom plate testing, select scenario `8` and enter your plate number
 
 See [SETUP.md](SETUP.md) for detailed setup instructions.
+
+### Contrib / hardware modules
+
+Hardware and experimental code lives under **contrib/** and **rpi/**:
+
+| Folder | Purpose |
+|--------|--------|
+| **[rpi/](rpi/)** | **Raspberry Pi demonstration:** camera (Picamera2), ultrasonic, servo, LEDs, plate OCR, gate open/close. Run from project root: `python alpr.py`. Uses `src.common.gate_logic.decide_gate_action` and shared fuzzy logic. Requires Pi with gpiozero, picamera2, tesseract, opencv. |
+| **[contrib/image_processing_ocr/](contrib/image_processing_ocr/)** | OCR notebook (Colab-friendly) and sample plate images in `number_plates/`. Vision tests use these when available. |
+| **[contrib/ocr_with_database/](contrib/ocr_with_database/)** | Alternate RPi pipeline: camera, ultrasonic, servo, LEDs, OCR, SQLite. Scripts: `Servo_led_test.py`, `Ocr.py`, `Smart_gate_with_DB.py`. Run on device. |
+
+The root **alpr.py** is a launcher that runs **rpi/alpr.py** so you can start the Pi demo with `python alpr.py` from the project root. The main app (`main.py`) does not depend on these; it uses a mock sensor and runs without hardware.
+
+### Development without hardware
+
+The application and **entire test suite** run without Raspberry Pi or sensors. The main app uses a **mock distance sensor** (`MockSensor`); you can run scenarios and use the menu as usual. To run tests: `pytest tests/ -v` (see [Testing](#-testing)).
+
+### Raspberry Pi demonstration
+
+On a Raspberry Pi with camera, ultrasonic sensor, servo, and LEDs installed, run the gate demo from the **project root**:
+
+```bash
+python alpr.py
+```
+
+This runs **rpi/alpr.py**: captures frames with Picamera2, runs plate OCR (Tesseract), checks plates against a local SQLite DB (`plates.db`) with fuzzy matching, and opens/closes the gate via servo. Install on the Pi: `gpiozero`, `picamera2`, `opencv-python`, `pytesseract`, system Tesseract. See [SETUP.md](SETUP.md) for Pi setup.
+
+#### Gate Live Dashboard (for presentations)
+
+To show Pi events **live on a separate dashboard** (e.g. on a laptop during a demo):
+
+1. On the **laptop** (same network as the Pi), start the Gate Live dashboard:
+   ```bash
+   python run_gate_dashboard.py
+   ```
+   Opens at **http://localhost:5001** — clean, dark UI with current plate, distance, decision, gate state, and event log.
+
+2. On the **Pi**, set the dashboard URL and run the gate:
+   ```bash
+   export GATE_DASHBOARD_URL=http://<laptop-ip>:5001
+   python alpr.py
+   ```
+   The Pi posts each plate decision and gate open/close to the dashboard; the page auto-refreshes every 1.5s. The main dashboard (port 5000) is unchanged.
 
 ## 🎮 Main Menu Options
 
@@ -141,20 +208,62 @@ Access the web dashboard:
 - URL: http://localhost:5000
 
 Features:
-- Real-time event display
-- Statistics (total events, authorized vehicles, detections)
-- Auto-refresh every 5 seconds
-- Responsive design
+- **Real-time event display** — Stats (total events, authorized vehicles, detections) and events table; **fetch-based refresh** (no full page reload) with configurable interval and **Pause auto-refresh** toggle.
+- **Run scenarios** — Each scenario has a **Run** button; runs the scenario (mock sensor + detector), logs events to the database, then you can refresh to see new events.
+- **Plate check (image upload)** — Upload a license plate image (JPEG/PNG); the server runs **plate OCR** (Tesseract via `src/vision`) and checks the read text against authorized vehicles (exact + fuzzy match). Shows read plate, authorized/denied, and similar plates. Requires optional vision dependencies (see SETUP.md).
+- **API:** `GET /api/events`, `GET /api/vehicles`, `GET /api/scenarios`; `POST /api/scenarios/<id>/run`; `POST /api/vision/check` (multipart image upload).
 
 ## 🧪 Testing
 
-Run tests:
+All tests run **without hardware**: they use a mock sensor, temporary databases, and no camera/GPIO.
+
+### Run the full test suite
+
+```bash
+# Install test dependencies (optional; pytest may already be installed)
+pip install -r requirements-dev.txt
+
+# Run all tests (unit, integration, e2e)
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ -v --cov=src --cov-report=term-missing
+```
+
+### Test layers
+
+| Layer | Location | Description |
+|-------|----------|-------------|
+| **Unit** | `tests/unit/` | Detector, database, fuzzy logic, scenario runner, command handler (mocked deps) |
+| **Integration** | `tests/integration/` | Detector + DB logging; scenario flow with real components |
+| **E2E** | `tests/e2e/` | Full flow: init, scenario run, DB state and plate check (no interactive input) |
+
+Optional **vision** tests (real images/OCR): `tests/vision/`. They use the shared **`src/vision`** module when available (plate OCR). They skip if no image or OCR deps. See [docs/TESTING.md](docs/TESTING.md).
+
+### Run specific test groups
+
+```bash
+pytest tests/unit/ -v
+pytest tests/integration/ -v
+pytest tests/e2e/ -v
+pytest tests/unit/test_detector.py -v
+```
+
+Optional: run vision tests (use real images in `contrib/image_processing_ocr/number_plates/` or `tests/data/images/`; requires optional `pytesseract`/OpenCV):
+
+```bash
+pytest tests/vision/ -v
+```
+
+### Legacy script-style tests (still supported)
+
 ```bash
 python tests/test_detector.py
 python tests/test_database.py
 ```
 
-Run demo scripts:
+### Run demo scripts
+
 ```bash
 python examples/demo_detection.py
 python examples/demo_database.py
@@ -183,6 +292,9 @@ Edit `config/detection_config.yaml` to adjust:
 - pyyaml>=6.0
 - flask>=3.0.0 (for web dashboard)
 
+For development and testing:
+- pytest>=7.0.0, pytest-cov>=4.0.0 (see `requirements-dev.txt`)
+
 ## 🎯 Key Features
 
 - ✅ Menu-driven interface (no need to type commands)
@@ -193,6 +305,9 @@ Edit `config/detection_config.yaml` to adjust:
 - ✅ Web dashboard for monitoring
 - ✅ Color-coded terminal output
 - ✅ Modular, maintainable code structure
+- ✅ **Full test suite without hardware** (unit, integration, E2E with mock sensor and temp DB)
+- ✅ **Dashboard:** run scenarios from UI, plate check via image upload (OCR), fetch-based refresh with pause
+- ✅ **Shared plate OCR** (`src/vision/`) for tests and dashboard
 
 ## 🤝 Contributing
 
@@ -212,7 +327,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - **Driver:** @Aishwarya V B
 - **Approver:** Prof. Christian Fiedler
-- **Contributors:** @Yash Kakadiya, @Dishva Italiya, @Jenish Sheladiya, @dhruvimoradiya01, @HimaPatel24, @Shubha, @pavanmgowda2497, @gourip682
+- **Contributors:** @Yash Kakadiya, @Dishva Italiya, @Jenish Sheladiya, @dhruvimoradiya01, @HimaPatel24, @Shubha, @pavanmgowda2497, @gourip682, @Giorgi Ubiria
 
 ---
 
