@@ -4,7 +4,7 @@ import time
 from src.vehicle_detection import MockSensor, VehicleDetector
 from src.vehicle_detection.detector import VEHICLE_DETECTED
 from src.database import VehicleDB
-from .colors import Colors, print_info, print_warning
+from .colors import Colors, print_info, print_warning, print_error
 
 
 class ScenarioRunner:
