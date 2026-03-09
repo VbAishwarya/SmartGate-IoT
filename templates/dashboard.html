@@ -150,6 +150,11 @@
         #vision-result.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
         #vision-result.fail { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
         #vision-result.neutral { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+        #vision-result-easyocr { margin-top: 16px; padding: 12px; border-radius: 8px; font-size: 0.95em; display: none; }
+        #vision-result-easyocr.show { display: block; }
+        #vision-result-easyocr.success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+        #vision-result-easyocr.fail { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+        #vision-result-easyocr.neutral { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
         .vision-plate { font-weight: 700; font-size: 1.1em; }
         .vision-similar { margin-top: 8px; font-size: 0.9em; color: #6b7280; }
         
@@ -162,7 +167,7 @@
     <div class="container">
         <header>
             <h1>🚗 SmartGate-IoT Dashboard</h1>
-            <p class="subtitle">Real-time Vehicle Detection System</p>
+            <p class="subtitle">Simulation & monitoring (mock sensor, local DB & plate OCR)</p>
             <p class="meta-line" id="last-refresh" aria-live="polite">—</p>
         </header>
         
@@ -241,11 +246,20 @@
             
             <div class="card vision-card">
                 <h2>Plate check (image upload)</h2>
-                <p class="meta-line">Upload a license plate image (crop or full image). OCR reads the plate text and checks it against authorized vehicles.</p>
+                <p class="meta-line">Upload a license plate image (crop or full image). OCR reads the plate text and checks it against authorized vehicles. Uses <strong>Tesseract</strong> by default.</p>
                 <input type="file" class="file-input" id="vision-file" accept="image/jpeg,image/png,image/jpg" aria-label="Choose plate image">
                 <br>
                 <button type="button" class="check-plate-btn" id="vision-check-btn" onclick="checkPlateImage()">Check plate</button>
                 <div id="vision-result" role="status" aria-live="polite"></div>
+            </div>
+
+            <div class="card vision-card">
+                <h2>Plate check (EasyOCR)</h2>
+                <p class="meta-line">Same as above but forces <strong>EasyOCR</strong> backend (often better for EU plates / odd fonts). Requires <code>pip install easyocr</code>.</p>
+                <input type="file" class="file-input" id="vision-file-easyocr" accept="image/jpeg,image/png,image/jpg" aria-label="Choose plate image for EasyOCR">
+                <br>
+                <button type="button" class="check-plate-btn" id="vision-check-btn-easyocr" onclick="checkPlateImageEasyOCR()">Check plate (EasyOCR)</button>
+                <div id="vision-result-easyocr" role="status" aria-live="polite"></div>
             </div>
         </div>
     </div>
@@ -319,9 +333,15 @@
         }
 
         function checkPlateImage() {
-            var input = document.getElementById('vision-file');
-            var resultEl = document.getElementById('vision-result');
-            var btn = document.getElementById('vision-check-btn');
+            checkPlateImageWithBackend('vision-file', 'vision-result', 'vision-check-btn', null);
+        }
+        function checkPlateImageEasyOCR() {
+            checkPlateImageWithBackend('vision-file-easyocr', 'vision-result-easyocr', 'vision-check-btn-easyocr', 'easyocr');
+        }
+        function checkPlateImageWithBackend(inputId, resultId, btnId, backend) {
+            var input = document.getElementById(inputId);
+            var resultEl = document.getElementById(resultId);
+            var btn = document.getElementById(btnId);
             if (!input.files || !input.files.length) {
                 resultEl.className = 'show neutral';
                 resultEl.textContent = 'Please choose an image first.';
@@ -332,6 +352,7 @@
             resultEl.className = 'show neutral';
             var form = new FormData();
             form.append('image', input.files[0]);
+            if (backend) form.append('backend', backend);
             fetch('/api/vision/check', { method: 'POST', body: form })
                 .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, status: r.status, data: data }; }); })
                 .then(function(res) {

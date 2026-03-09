@@ -11,7 +11,9 @@ Optional module for **license plate OCR** using Tesseract. Used by:
 - **`ocr_from_path(image_path)`** — Run plate OCR on a file path; returns `(text, error)`
 - **`ocr_from_bytes(data)`** — Run plate OCR on image bytes (e.g. upload); returns `(text, error)`
 
-Text is normalized to uppercase alphanumeric only (A–Z, 0–9). Config: `--psm 7` (single line), character whitelist.
+Text is normalized to uppercase alphanumeric only (A–Z, 0–9). Multiple Tesseract PSMs and EU cropping are used for European plates.
+
+**Optional backend:** Set `SMARTGATE_OCR_BACKEND=easyocr` and install `easyocr` for often better results on EU plates and odd fonts. See **docs/PLATE_OCR_OPTIONS.md** for other model options (PaddleOCR, custom Tesseract training, dedicated ALPR).
 
 ## Dependencies
 

@@ -49,16 +49,42 @@ def run_scenario_route(scenario_id):
 
 @app.route('/api/vision/check', methods=['POST'])
 def api_vision_check():
-    """Run plate OCR on uploaded image and check authorization."""
+    """Run plate OCR on uploaded image and check authorization.
+    Optional form field 'backend': 'tesseract' (default) or 'easyocr'.
+    """
     from src.vision import ocr_from_bytes, ocr_available
     from src.fuzzy_logic import check_plate_authorization
+
+    backend = (request.form.get('backend') or request.args.get('backend') or 'tesseract').strip().lower()
+    if backend == 'easyocr':
+        try:
+            import easyocr  # noqa: F401
+        except ImportError:
+            return jsonify({'success': False, 'error': 'EasyOCR not installed (pip install easyocr)'}), 503
+        prev = os.environ.get('SMARTGATE_OCR_BACKEND')
+        os.environ['SMARTGATE_OCR_BACKEND'] = 'easyocr'
+    else:
+        prev = None
+
     if not ocr_available():
+        if prev is not None:
+            os.environ.pop('SMARTGATE_OCR_BACKEND', None)
+            if prev:
+                os.environ['SMARTGATE_OCR_BACKEND'] = prev
         return jsonify({'success': False, 'error': 'OCR not available (install pytesseract and Tesseract)'}), 503
-    file = request.files.get('image')
-    if not file or file.filename == '':
-        return jsonify({'success': False, 'error': 'No image file uploaded'}), 400
-    data = file.read()
-    plate_text, err = ocr_from_bytes(data)
+
+    try:
+        file = request.files.get('image')
+        if not file or file.filename == '':
+            return jsonify({'success': False, 'error': 'No image file uploaded'}), 400
+        data = file.read()
+        plate_text, err = ocr_from_bytes(data)
+    finally:
+        if backend == 'easyocr' and prev is not None:
+            os.environ.pop('SMARTGATE_OCR_BACKEND', None)
+            if prev:
+                os.environ['SMARTGATE_OCR_BACKEND'] = prev
+
     if err is not None:
         return jsonify({'success': False, 'error': err}), 200
     authorized_plates = [v['plate_number'] for v in db.get_all_vehicles()]
@@ -81,7 +107,7 @@ if __name__ == '__main__':
     print("="*70)
     print("\n✅ Dashboard starting...")
     print("🌐 Open your browser and go to: http://localhost:5000")
-    print("📊 Dashboard will auto-refresh every 5 seconds")
+    print("📊 Dashboard will auto-refresh periodically (you can pause from the UI)")
     print("\nPress Ctrl+C to stop the server\n")
     print("="*70 + "\n")
     
