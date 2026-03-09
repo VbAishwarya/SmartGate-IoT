@@ -1,27 +1,12 @@
-# OCR with Database (Hima & Dhruvi)
+# OCR with Database (contrib)
 
-This folder is **contrib** (hardware) content. In the project’s docs it’s referred to as **contrib/ocr_with_database**.
-
-## Contents
+Alternate RPi pipeline (camera, ultrasonic, servo, LEDs, OCR, SQLite). Run on device.
 
 | File | Purpose |
-|------|--------|
-| **Servo_led_test.py** | Standalone hardware test: ultrasonic (GPIO 23/24), LEDs (17/27), servo (18). Opens gate when object &lt; 10 cm. Uses `RPi.GPIO`. No camera/OCR. |
-| **Ocr.py** | Full pipeline: camera (Picamera2), ultrasonic, LEDs, servo + OCR. Authorized plates from **text file** `authorized_plates.txt`. Exact match only. |
-| **Database_Ocr_test.py** | Same pipeline + **SQLite** `plates.db`; exact match on `authorized_plates` table. |
-| **Smart_gate_with_DB.py** | Full version: SQLite + **fuzzy matching** (95%), live preview, 5 s gate-open window, log to `gate_log2.txt`. Stops after first authorized vehicle. |
+|------|---------|
+| **Servo_led_test.py** | Hardware test: ultrasonic (23/24), LEDs (17/27), servo (18). No camera/OCR. |
+| **Ocr.py** | Camera + ultrasonic + LEDs + servo + OCR. Authorized plates from `authorized_plates.txt`. |
+| **Database_Ocr_test.py** | Same + SQLite `plates.db` (exact match). |
+| **Smart_gate_with_DB.py** | SQLite + fuzzy matching (95%), live preview, gate log. |
 
-## Requirements
-
-- **Raspberry Pi** with GPIO, camera, ultrasonic sensor, servo, LEDs.
-- Python packages: `gpiozero`, `picamera2`, `PIL`, `pytesseract`, `opencv-python`, `numpy`. For `Servo_led_test.py`: `RPi.GPIO` only.
-
-## Relation to main app
-
-- **main.py** uses a **mock sensor** and `src/database/VehicleDB`; it does not use camera or GPIO and runs without hardware.
-- These scripts are the **real-hardware** counterpart: same ideas (distance, OCR, DB, fuzzy match) but tied to RPi and camera.
-- The main app’s **VehicleDB** and **fuzzy logic** live in `src/database/` and `src/fuzzy_logic.py`; these scripts use their own DB path (`plates.db`) and logic for device use.
-
-## Naming
-
-This directory is **contrib/ocr_with_database**. See `contrib/README.md` and `docs/ARCHITECTURE.md` for conventions.
+For the **recommended Pi demo** using shared gate logic, use **rpi/alpr.py** and run `python alpr.py` from project root. See [README.md](../../README.md) and [SETUP.md](../../SETUP.md).

@@ -9,11 +9,13 @@ SmartGate-IoT is a scaled IoT demonstration project that showcases an automated 
 ## 📚 Project Documentation
 
 ### Documentation
-- **[Architecture](docs/ARCHITECTURE.md)** — Design pattern (Ports & Adapters), directory layout, naming
-- **[Testing](docs/TESTING.md)** — Real imagery, ML pipelines, dashboard simulation, vision tests
-- **[Documentation overview](docs/DOCUMENTATION_OVERVIEW.md)** — Contrib, READMEs, examples, vision test setup
-- **[Vehicle Detection Logic](docs/vehicle_detection_logic.md)** - Detection logic and pseudocode
-- **[Assumptions](docs/assumptions.md)** - Assumptions and constraints
+- **[Docs index](docs/README.md)** — Overview of all documentation
+- **[Architecture](docs/ARCHITECTURE.md)** — Design (Ports & Adapters), directory layout
+- **[Setup](SETUP.md)** — Installation, tests, vision, Raspberry Pi
+- **[Testing](docs/TESTING.md)** — Test layers, vision tests, dashboard
+- **[Design](docs/DESIGN.md)** — Assumptions, detection logic, constraints
+- **[Module reference](docs/MODULES.md)** — Database, vehicle detection, vision (OCR)
+- **[Plate OCR options](docs/PLATE_OCR_OPTIONS.md)** — Tesseract, EasyOCR, PaddleOCR, ALPR
 
 ### Current Status
 - ✅ **Vehicle Detection Module:** Complete
@@ -59,13 +61,16 @@ SmartGate-IoT/
 │   └── test_database.py    # Legacy database tests
 ├── contrib/                # Hardware and experimental modules
 │   ├── image_processing_ocr/   # OCR notebook + sample plates (number_plates/)
-│   ├── ocr_with_database/     # RPi pipeline (camera, servo, LEDs, OCR, SQLite)
+│   ├── ocr_with_database/     # Alternate RPi pipeline (camera, servo, LEDs, OCR, SQLite)
 │   └── README.md
+├── rpi/                    # Raspberry Pi demonstration (camera, GPIO, gate)
+│   └── alpr.py             # Pi entry: Picamera2, ultrasonic, servo, LEDs, plate OCR, gate logic
 ├── docs/                   # Documentation
 ├── examples/               # Demo scripts
 ├── templates/              # Web dashboard templates
 ├── main.py                 # Main application entry point
-└── run_dashboard.py        # Standalone dashboard runner
+├── run_dashboard.py        # Standalone dashboard runner
+├── alpr.py                 # Pi demo launcher (runs rpi/alpr.py; use on device only)
 ```
 
 ## 🚀 Quick Start
@@ -104,18 +109,29 @@ See [SETUP.md](SETUP.md) for detailed setup instructions.
 
 ### Contrib / hardware modules
 
-Hardware and experimental code lives under **contrib/** with `lowercase_with_underscores` naming:
+Hardware and experimental code lives under **contrib/** and **rpi/**:
 
 | Folder | Purpose |
 |--------|--------|
-| **[contrib/image_processing_ocr/](contrib/image_processing_ocr/)** | OCR notebook (Colab-friendly) and sample plate images in `number_plates/`. Vision tests use these images when available. |
-| **[contrib/ocr_with_database/](contrib/ocr_with_database/)** | Raspberry Pi pipeline: camera, ultrasonic, servo, LEDs, OCR, SQLite. Scripts: `Servo_led_test.py`, `Ocr.py`, `Database_Ocr_test.py`, `Smart_gate_with_DB.py`. Run on device. |
+| **[rpi/](rpi/)** | **Raspberry Pi demonstration:** camera (Picamera2), ultrasonic, servo, LEDs, plate OCR, gate open/close. Run from project root: `python alpr.py`. Uses `src.common.gate_logic.decide_gate_action` and shared fuzzy logic. Requires Pi with gpiozero, picamera2, tesseract, opencv. |
+| **[contrib/image_processing_ocr/](contrib/image_processing_ocr/)** | OCR notebook (Colab-friendly) and sample plate images in `number_plates/`. Vision tests use these when available. |
+| **[contrib/ocr_with_database/](contrib/ocr_with_database/)** | Alternate RPi pipeline: camera, ultrasonic, servo, LEDs, OCR, SQLite. Scripts: `Servo_led_test.py`, `Ocr.py`, `Smart_gate_with_DB.py`. Run on device. |
 
-Each folder has a **README.md** with details. The main app (`main.py`) does not depend on these; it uses a mock sensor and runs without hardware.
+The root **alpr.py** is a launcher that runs **rpi/alpr.py** so you can start the Pi demo with `python alpr.py` from the project root. The main app (`main.py`) does not depend on these; it uses a mock sensor and runs without hardware.
 
 ### Development without hardware
 
 The application and **entire test suite** run without Raspberry Pi or sensors. The main app uses a **mock distance sensor** (`MockSensor`); you can run scenarios and use the menu as usual. To run tests: `pytest tests/ -v` (see [Testing](#-testing)).
+
+### Raspberry Pi demonstration
+
+On a Raspberry Pi with camera, ultrasonic sensor, servo, and LEDs installed, run the gate demo from the **project root**:
+
+```bash
+python alpr.py
+```
+
+This runs **rpi/alpr.py**: captures frames with Picamera2, runs plate OCR (Tesseract), checks plates against a local SQLite DB (`plates.db`) with fuzzy matching, and opens/closes the gate via servo. Install on the Pi: `gpiozero`, `picamera2`, `opencv-python`, `pytesseract`, system Tesseract. See [SETUP.md](SETUP.md) for Pi setup.
 
 ## 🎮 Main Menu Options
 

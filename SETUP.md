@@ -94,6 +94,21 @@ If the test is skipped with "pytesseract not installed" or "OCR failed", ensure 
 
 **Dashboard plate check:** To use "Plate check (image upload)" in the web dashboard, install the same vision dependencies (Tesseract + `requirements-vision.txt`). Without them, the dashboard still works but the plate-check endpoint will return "OCR not available".
 
+## Raspberry Pi demonstration (optional)
+
+To run the gate demo on a Raspberry Pi with camera, ultrasonic sensor, servo, and LEDs:
+
+1. **On the Pi**, clone the repo and install dependencies:
+   ```bash
+   pip install gpiozero picamera2 opencv-python-headless pytesseract Pillow
+   sudo apt install tesseract-ocr libcamera0
+   ```
+2. **From the project root** on the Pi:
+   ```bash
+   python alpr.py
+   ```
+   This runs **rpi/alpr.py**: live camera, distance sensor, plate OCR, and gate control. Authorized plates are read from `rpi/plates.db` (SQLite). The script uses `src.common.gate_logic.decide_gate_action` and exits after the first authorized vehicle (or press `q` to quit). On non-Pi machines, `python alpr.py` will exit with a message that Pi hardware is required.
+
 ## Running Demos
 
 ```bash
